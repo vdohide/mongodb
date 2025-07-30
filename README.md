@@ -47,13 +47,13 @@ curl -fsSL https://raw.githubusercontent.com/vdohide/mongodb/refs/heads/main/cre
 
 ```bash
 # รันในทุกเซิร์ฟเวอร์หลังจากติดตั้ง SSL เรียบร้อยแล้ว
-curl -fsSL https://raw.githubusercontent.com/vdohide/mongodb/refs/heads/main/replica.sh | sed 's/set -e/set +e/' | sudo -E bash -s 127.0.0.1,127.0.02,127.0.03 admin 21042537
+curl -fsSL https://raw.githubusercontent.com/vdohide/mongodb/refs/heads/main/replica.sh | sed 's/set -e/set +e/' | sudo -E bash -s 127.0.0.1,127.0.02,127.0.03 admin 123456
 ```
 
 **พารามิเตอร์:**
 - `127.0.0.1,127.0.02,127.0.03` = รายการ IP ของ replica set
 - `admin` = MongoDB admin username
-- `21042537` = MongoDB admin password
+- `123456` = MongoDB admin password
 
 ---
 
@@ -122,7 +122,7 @@ IP Address:127.0.03
 ใน **ทุกเซิร์ฟเวอร์** รันคำสั่งนี้:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zergolf1994/rental-repo/refs/heads/main/install-mongodb-replica.sh | sed 's/set -e/set +e/' | sudo -E bash -s 127.0.0.1,127.0.02,127.0.03 admin 21042537
+curl -fsSL https://raw.githubusercontent.com/zergolf1994/rental-repo/refs/heads/main/install-mongodb-replica.sh | sed 's/set -e/set +e/' | sudo -E bash -s 127.0.0.1,127.0.02,127.0.03 admin 123456
 ```
 
 #### **2.2 ตรวจสอบ MongoDB Service**
@@ -196,7 +196,7 @@ sudo systemctl status mongod
 sudo /opt/mongodb/ssl/test-ssl-connection.sh
 
 # ทดสอบการเชื่อมต่อด้วย TLS
-mongosh "mongodb://admin:21042537@database.demo.dev:27017/admin?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true"
+mongosh "mongodb://admin:123456@database.demo.dev:27017/admin?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true"
 ```
 
 ---
@@ -207,22 +207,22 @@ mongosh "mongodb://admin:21042537@database.demo.dev:27017/admin?replicaSet=rs0&a
 
 #### **Basic SSL Connection**
 ```javascript
-mongodb://admin:21042537@database.demo.dev:27017/your_database?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true
+mongodb://admin:123456@database.demo.dev:27017/your_database?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true
 ```
 
 #### **Full Replica Set SSL Connection**
 ```javascript
-mongodb://admin:21042537@127.0.0.1:27017,127.0.02:27017,127.0.03:27017/your_database?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true
+mongodb://admin:123456@127.0.0.1:27017,127.0.02:27017,127.0.03:27017/your_database?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true
 ```
 
 #### **SRV Record Connection (Recommended)**
 ```javascript
-mongodb+srv://admin:21042537@database.demo.dev/your_database?authSource=admin&tls=true&tlsInsecure=true
+mongodb+srv://admin:123456@database.demo.dev/your_database?authSource=admin&tls=true&tlsInsecure=true
 ```
 
 #### **High Security Connection (Certificate Validation)**
 ```javascript
-mongodb://admin:21042537@database.demo.dev:27017/your_database?replicaSet=rs0&authSource=admin&tls=true&tlsCertificateKeyFile=/opt/mongodb/ssl/mongodb.pem&tlsCAFile=/opt/mongodb/ssl/ca-bundle.crt
+mongodb://admin:123456@database.demo.dev:27017/your_database?replicaSet=rs0&authSource=admin&tls=true&tlsCertificateKeyFile=/opt/mongodb/ssl/mongodb.pem&tlsCAFile=/opt/mongodb/ssl/ca-bundle.crt
 ```
 
 ### **Application Examples**
@@ -231,7 +231,7 @@ mongodb://admin:21042537@database.demo.dev:27017/your_database?replicaSet=rs0&au
 ```javascript
 const mongoose = require('mongoose');
 
-const connectionString = 'mongodb://admin:21042537@database.demo.dev:27017/vdohide_production?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true';
+const connectionString = 'mongodb://admin:123456@database.demo.dev:27017/vdohide_production?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true';
 
 mongoose.connect(connectionString, {
   useNewUrlParser: true,
@@ -247,7 +247,7 @@ mongoose.connect(connectionString, {
 from pymongo import MongoClient
 
 client = MongoClient(
-    'mongodb://admin:21042537@database.demo.dev:27017/vdohide_production?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true',
+    'mongodb://admin:123456@database.demo.dev:27017/vdohide_production?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true',
     maxPoolSize=50,
     serverSelectionTimeoutMS=5000
 )
@@ -258,7 +258,7 @@ db = client['vdohide_production']
 #### **PHP (MongoDB Driver)**
 ```php
 <?php
-$connectionString = 'mongodb://admin:21042537@database.demo.dev:27017/vdohide_production?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true';
+$connectionString = 'mongodb://admin:123456@database.demo.dev:27017/vdohide_production?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true';
 
 $client = new MongoDB\Client($connectionString, [
     'maxPoolSize' => 100,
@@ -439,7 +439,7 @@ sudo openssl x509 -in /opt/mongodb/ssl/mongodb.crt -noout -dates
 
 - **Domain:** `database.demo.dev`
 - **Admin User:** `admin`
-- **Password:** `21042537`
+- **Password:** `123456`
 - **Replica Set:** `rs0`
 - **SSL:** Required for production connections
 
