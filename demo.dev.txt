@@ -1,0 +1,47 @@
+;;
+;; Domain:     demo.dev.
+;; Exported:   2025-07-30 13:01:20
+;;
+;; This file is intended for use for informational and archival
+;; purposes ONLY and MUST be edited before use on a production
+;; DNS server.  In particular, you must:
+;;   -- update the SOA record with the correct authoritative name server
+;;   -- update the SOA record with the contact e-mail address information
+;;   -- update the NS record(s) with the authoritative name servers for this domain.
+;;
+;; For further information, please consult the BIND documentation
+;; located on the following website:
+;;
+;; http://www.isc.org/
+;;
+;; And RFC 1035:
+;;
+;; http://www.ietf.org/rfc/rfc1035.txt
+;;
+;; Please note that we do NOT offer technical support for any use
+;; of this zone data, the BIND name server, or any other third-party
+;; DNS software.
+;;
+;; Use at your own risk.
+;; SOA Record
+demo.dev	3600	IN	SOA	houston.ns.cloudflare.com. dns.cloudflare.com. 2050554708 10000 2400 604800 3600
+
+;; NS Records
+demo.dev.	86400	IN	NS	houston.ns.cloudflare.com.
+demo.dev.	86400	IN	NS	marge.ns.cloudflare.com.
+
+;; A Records
+mongodb1.demo.dev.	1	IN	A	91.99.163.168 ; cf_tags=cf-proxied:false
+mongodb2.demo.dev.	1	IN	A	91.99.209.211 ; cf_tags=cf-proxied:false
+mongodb3.demo.dev.	1	IN	A	46.62.169.124 ; cf_tags=cf-proxied:false
+
+;; CNAME Records
+database.demo.dev.	1	IN	CNAME	mongodb2.demo.dev. ; cf_tags=cf-proxied:false
+
+;; SRV Records
+_mongodb._tcp.database.demo.dev.	1	IN	SRV	0 10 27017 mongodb2.demo.dev.
+_mongodb._tcp.database.demo.dev.	1	IN	SRV	10 5 27017 mongodb3.demo.dev.
+_mongodb._tcp.database.demo.dev.	1	IN	SRV	20 5 27017 mongodb1.demo.dev.
+
+;; TXT Records
+database.demo.dev.	60	IN	TXT	"authSource=admin&replicaSet=rs0"
