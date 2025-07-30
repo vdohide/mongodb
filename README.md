@@ -1,446 +1,238 @@
-# 🍃 MongoDB Replica Set Installation Guide
+# คู่มือการติดตั้ง MongoDB Replica Set
 
-การติดตั้ง MongoDB Replica Set แบบสมบูรณ์ พร้อม SSL/TLS Security สำหรับ Production Environment
+## ภาพรวม
 
-## 📋 ข้อมูลระบบ
+คู่มือนี้ให้คำแนะนำทีละขั้นตอนสำหรับการติดตั้ง MongoDB Replica Set โดยใช้สคริปต์ติดตั้งอัตโนมัติที่สามารถดำเนินการต่อแม้เจอข้อผิดพลาดและกำหนดค่า IP addresses ที่ระบุ
 
-- **MongoDB Version:** 8.0.12 ARM64/AMD64
-- **Operating System:** Ubuntu 20.04+ 
-- **Replica Set Name:** rs0
-- **SSL/TLS:** Production-grade certificates
-- **Servers:** 3 nodes (1 Primary + 2 Secondary)
+## ข้อกำหนดเบื้องต้น
 
-### 🖥️ Server Configuration
+- เซิร์ฟเวอร์ Ubuntu 3 เครื่อง (ขั้นต่ำ)
+- สิทธิ์ Root หรือ sudo บนเซิร์ฟเวอร์ทุกเครื่อง
+- การเชื่อมต่อเครือข่ายระหว่างเซิร์ฟเวอร์ทุกเครื่อง
+- Port 27017 เปิดระหว่างเซิร์ฟเวอร์
 
-| Role | IP Address | Hostname | Port |
-|------|------------|----------|------|
-| Primary | 127.0.0.1 | mongodb1.demo.dev | 27017 |
-| Secondary | 127.0.02 | mongodb2.demo.dev | 27017 |
-| Secondary | 127.0.03 | mongodb3.demo.dev | 27017 |
+## การกำหนดค่าเซิร์ฟเวอร์
 
-### 🌐 DNS Configuration
+- **เซิร์ฟเวอร์หลัก (Primary):** 127.0.0.1
+- **เซิร์ฟเวอร์รอง 1:** 127.0.02
+- **เซิร์ฟเวอร์รอง 2:** 127.0.03
+- **ชื่อผู้ใช้ Admin:** admin
+- **รหัสผ่าน Admin:** 123456
 
-- **SRV Record:** `_mongodb._tcp.database.demo.dev`
-- **Domain:** `database.demo.dev`
-- **Wildcard SSL:** `*.demo.dev`
+## ขั้นตอนการติดตั้ง
 
----
+### ขั้นตอนที่ 1: รันสคริปต์การติดตั้งบนเซิร์ฟเวอร์ทุกเครื่อง
 
-## 🚀 Installation Process
-
-### ⚡ Quick Installation (Recommended)
-
-สำหรับการติดตั้งแบบเร็ว ใช้คำสั่งเดียวในแต่ละ server:
-
-#### **Step 1: ติดตั้ง SSL Certificates ก่อน (ทุกเซิร์ฟเวอร์)**
+รันคำสั่งต่อไปนี้บน **เซิร์ฟเวอร์ทั้งสามเครื่อง** (หลักและรอง):
 
 ```bash
-# รันในทุกเซิร์ฟเวอร์ (127.0.0.1, 127.0.02, 127.0.03)
-curl -fsSL https://raw.githubusercontent.com/vdohide/mongodb/refs/heads/main/create-ssl-certs.sh | sed 's/set -e/set +e/' | sudo -E bash -s "*.demo.dev,mongodb1.demo.dev,mongodb2.demo.dev,mongodb3.demo.dev,database.demo.dev" 127.0.0.1,127.0.02,127.0.03
+curl -fsSL https://raw.githubusercontent.com/vdohide/mongodb/refs/heads/main/replica.sh| sed 's/set -e/set +e/' | sudo -E bash -s 127.0.0.1,127.0.02,127.0.03 admin 123456
 ```
 
-**พารามิเตอร์:**
-- `*.,mongodb1,mongodb2,mongodb3,database.demo.dev` = รายการ domains
-- `127.0.0.1,127.0.02,127.0.03` = รายการ IP addresses
+**คำสั่งนี้ทำอะไร:**
 
-#### **Step 2: ติดตั้ง MongoDB (ทุกเซิร์ฟเวอร์)**
+- ดาวน์โหลดสคริปต์การติดตั้ง MongoDB จาก GitHub
+- แก้ไขสคริปต์ให้ดำเนินการต่อแม้เจอข้อผิดพลาด (`set +e` แทน `set -e`)
+- รันสคริปต์ด้วย IP addresses และข้อมูลรับรองที่ระบุ
+- กำหนดค่า MongoDB อัตโนมัติสำหรับการทำงานแบบ replica set
+
+### ขั้นตอนที่ 2: รอให้การติดตั้งเสร็จสิ้น
+
+สคริปต์การติดตั้งจะ:
+
+- ✅ อัปเดตแพ็กเกจของระบบ
+- ✅ เพิ่ม MongoDB 8.0 repository
+- ✅ ติดตั้ง MongoDB พร้อมตรวจสอบ architecture (ARM64/x86_64)
+- ✅ สร้าง replica set keyfile
+- ✅ กำหนดค่า MongoDB สำหรับ replica set
+- ✅ ปรับแต่งการตั้งค่าระบบ
+- ✅ กำหนดค่า firewall rules
+- ✅ เริ่มต้นบริการ MongoDB
+
+### ขั้นตอนที่ 3: คัดลอก Keyfile (เซิร์ฟเวอร์หลักเท่านั้น)
+
+หลังจากการติดตั้งเสร็จสิ้นบนเซิร์ฟเวอร์ทุกเครื่อง ให้รันคำสั่งเหล่านี้ **บนเซิร์ฟเวอร์หลักเท่านั้น** (127.0.0.1):
 
 ```bash
-# รันในทุกเซิร์ฟเวอร์หลังจากติดตั้ง SSL เรียบร้อยแล้ว
-curl -fsSL https://raw.githubusercontent.com/vdohide/mongodb/refs/heads/main/replica.sh | sed 's/set -e/set +e/' | sudo -E bash -s 127.0.0.1,127.0.02,127.0.03 admin 123456
+# คัดลอก keyfile ไปยังเซิร์ฟเวอร์รอง 1
+scp /opt/mongodb/keyfile root@127.0.02:/opt/mongodb/keyfile
+
+# คัดลอก keyfile ไปยังเซิร์ฟเวอร์รอง 2
+scp /opt/mongodb/keyfile root@127.0.03:/opt/mongodb/keyfile
 ```
 
-**พารามิเตอร์:**
-- `127.0.0.1,127.0.02,127.0.03` = รายการ IP ของ replica set
-- `admin` = MongoDB admin username
-- `123456` = MongoDB admin password
+### ขั้นตอนที่ 4: ตั้งค่าสิทธิ์ Keyfile (เซิร์ฟเวอร์รองทั้งสอง)
 
----
-
-## 📝 Step-by-Step Installation
-
-### **Prerequisites**
+รันคำสั่งเหล่านี้บน **เซิร์ฟเวอร์รองทั้งสองเครื่อง** (127.0.02 และ 127.0.03):
 
 ```bash
-# อัพเดทระบบ
-sudo apt update && sudo apt upgrade -y
-
-# ติดตั้ง tools ที่จำเป็น
-sudo apt install -y curl wget gnupg software-properties-common openssl
+chmod 400 /opt/mongodb/keyfile
+chown mongodb:mongodb /opt/mongodb/keyfile
+systemctl restart mongod
 ```
 
-### **Step 1: SSL Certificate Installation**
+### ขั้นตอนที่ 5: เริ่มต้น Replica Set (เซิร์ฟเวอร์หลักเท่านั้น)
 
-#### **1.1 เข้าสู่ Server แต่ละตัว**
+รันคำสั่งนี้ **บนเซิร์ฟเวอร์หลักเท่านั้น** (127.0.0.1):
 
 ```bash
-# Server 1 (Primary)
-ssh root@127.0.0.1
-
-# Server 2 (Secondary)
-ssh root@127.0.02
-
-# Server 3 (Secondary)
-ssh root@127.0.03
+mongosh < /opt/mongodb/init-replica-set.js
 ```
 
-#### **1.2 รัน SSL Installation Script**
+### ขั้นตอนที่ 6: สร้างผู้ใช้ Admin (เซิร์ฟเวอร์หลักเท่านั้น)
 
-ใน **ทุกเซิร์ฟเวอร์** รันคำสั่งนี้:
+รันคำสั่งนี้ **บนเซิร์ฟเวอร์หลักเท่านั้น** (127.0.0.1):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zergolf1994/rental-repo/refs/heads/main/create-ssl-certs.sh | sed 's/set -e/set +e/' | sudo -E bash -s *.,mongodb1,mongodb2,mongodb3,database.demo.dev 127.0.0.1,127.0.02,127.0.03
+mongosh < /opt/mongodb/create-users.js
 ```
 
-#### **1.3 ตรวจสอบ SSL Installation**
+### ขั้นตอนที่ 7: ตรวจสอบการติดตั้ง
+
+ตรวจสอบสถานะ replica set บนเซิร์ฟเวอร์ใดก็ได้:
 
 ```bash
-# ตรวจสอบไฟล์ SSL
-sudo ls -la /opt/mongodb/ssl/
-
-# ตรวจสอบ certificate
-sudo openssl x509 -in /opt/mongodb/ssl/mongodb.crt -text -noout | grep -E "(Subject:|DNS:|IP Address:)"
+/opt/mongodb/health-check.sh
 ```
 
-**Expected Output:**
-```
-Subject: C=TH, ST=Bangkok, L=Bangkok, O=VdoHide Ltd, OU=Database Team, CN=*.demo.dev
-DNS:*.demo.dev
-DNS:mongodb1.demo.dev
-DNS:mongodb2.demo.dev
-DNS:mongodb3.demo.dev
-DNS:database.demo.dev
-IP Address:127.0.0.1
-IP Address:127.0.02
-IP Address:127.0.03
-```
-
-### **Step 2: MongoDB Installation**
-
-#### **2.1 รัน MongoDB Installation Script**
-
-ใน **ทุกเซิร์ฟเวอร์** รันคำสั่งนี้:
+หรือตรวจสอบแบบ manual:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zergolf1994/rental-repo/refs/heads/main/install-mongodb-replica.sh | sed 's/set -e/set +e/' | sudo -E bash -s 127.0.0.1,127.0.02,127.0.03 admin 123456
+mongosh --eval "rs.status()"
 ```
 
-#### **2.2 ตรวจสอบ MongoDB Service**
+## Connection Strings
+
+หลังจากติดตั้งสำเร็จแล้ว ให้ใช้ connection strings เหล่านี้:
+
+### การเชื่อมต่อ Admin (สิทธิ์เต็ม)
+
+```
+mongodb://admin:123456@127.0.0.1:27017,127.0.02:27017,127.0.03:27017/admin?replicaSet=rs0&authSource=admin
+```
+
+### การเชื่อมต่อฐานข้อมูลแอปพลิเคชัน
+
+```
+mongodb://admin:123456@127.0.0.1:27017,127.0.02:27017,127.0.03:27017/DATABASE_NAME?replicaSet=rs0&authSource=admin
+```
+
+### พร้อม Read Preference (แนะนำ)
+
+```
+mongodb://admin:123456@127.0.0.1:27017,127.0.02:27017,127.0.03:27017/DATABASE_NAME?replicaSet=rs0&authSource=admin&readPreference=secondaryPreferred
+```
+
+## ตัวอย่างการเชื่อมต่อฐานข้อมูล
+
+### ฐานข้อมูล VdoHide
+
+```
+mongodb://admin:123456@127.0.0.1:27017,127.0.02:27017,127.0.03:27017/vdohide?replicaSet=rs0&authSource=admin
+```
+
+### ฐานข้อมูล Test
+
+```
+mongodb://admin:123456@127.0.0.1:27017,127.0.02:27017,127.0.03:27017/test?replicaSet=rs0&authSource=admin
+```
+
+## การตั้งค่า Backup (ไม่บังคับ)
+
+ตั้งค่าการสำรองข้อมูลอัตโนมัติรายวันโดยเพิ่มใน crontab:
 
 ```bash
-# ตรวจสอบสถานะ service
-sudo systemctl status mongod
-
-# ตรวจสอบ logs
-sudo journalctl -u mongod --since "5 minutes ago" --no-pager
-
-# ตรวจสอบการทำงาน
-sudo mongosh --eval "db.runCommand('ping')"
+crontab -e
 ```
 
-### **Step 3: Replica Set Initialization**
+เพิ่มบรรทัดนี้:
 
-#### **3.1 Initialize Replica Set (Primary Server เท่านั้น)**
-
-รันใน **127.0.0.1** (Primary) เท่านั้น:
-
-```bash
-# Initialize replica set
-sudo mongosh < /opt/mongodb/init-replica-set.js
-
-# สร้าง admin user
-sudo mongosh < /opt/mongodb/create-users.js
 ```
-
-#### **3.2 ตรวจสอบ Replica Set Status**
-
-```bash
-# ตรวจสอบสถานะ replica set
-sudo mongosh --eval "rs.status()"
-
-# ตรวจสอบ members
-sudo mongosh --eval "rs.status().members.forEach(m => print(m.name + ': ' + m.stateStr))"
-```
-
-**Expected Output:**
-```
-127.0.0.1:27017: PRIMARY
-127.0.02:27017: SECONDARY
-127.0.03:27017: SECONDARY
-```
-
-### **Step 4: SSL Configuration**
-
-#### **4.1 อัพเดท MongoDB Configuration พร้อม SSL**
-
-ใน **ทุกเซิร์ฟเวอร์**:
-
-```bash
-# หยุด MongoDB
-sudo systemctl stop mongod
-
-# อัพเดท configuration ด้วย SSL
-sudo cp /opt/mongodb/ssl/mongod-ssl.conf /etc/mongod.conf
-
-# เริ่ม MongoDB พร้อม SSL
-sudo systemctl start mongod
-
-# ตรวจสอบสถานะ
-sudo systemctl status mongod
-```
-
-#### **4.2 ตรวจสอบ SSL Connection**
-
-```bash
-# ทดสอบ SSL connection
-sudo /opt/mongodb/ssl/test-ssl-connection.sh
-
-# ทดสอบการเชื่อมต่อด้วย TLS
-mongosh "mongodb://admin:123456@database.demo.dev:27017/admin?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true"
-```
-
----
-
-## 🔗 Connection Strings
-
-### **Production SSL Connections**
-
-#### **Basic SSL Connection**
-```javascript
-mongodb://admin:123456@database.demo.dev:27017/your_database?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true
-```
-
-#### **Full Replica Set SSL Connection**
-```javascript
-mongodb://admin:123456@127.0.0.1:27017,127.0.02:27017,127.0.03:27017/your_database?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true
-```
-
-#### **SRV Record Connection (Recommended)**
-```javascript
-mongodb+srv://admin:123456@database.demo.dev/your_database?authSource=admin&tls=true&tlsInsecure=true
-```
-
-#### **High Security Connection (Certificate Validation)**
-```javascript
-mongodb://admin:123456@database.demo.dev:27017/your_database?replicaSet=rs0&authSource=admin&tls=true&tlsCertificateKeyFile=/opt/mongodb/ssl/mongodb.pem&tlsCAFile=/opt/mongodb/ssl/ca-bundle.crt
-```
-
-### **Application Examples**
-
-#### **Node.js (Mongoose)**
-```javascript
-const mongoose = require('mongoose');
-
-const connectionString = 'mongodb://admin:123456@database.demo.dev:27017/vdohide_production?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true';
-
-mongoose.connect(connectionString, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  maxPoolSize: 10,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-});
-```
-
-#### **Python (PyMongo)**
-```python
-from pymongo import MongoClient
-
-client = MongoClient(
-    'mongodb://admin:123456@database.demo.dev:27017/vdohide_production?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true',
-    maxPoolSize=50,
-    serverSelectionTimeoutMS=5000
-)
-
-db = client['vdohide_production']
-```
-
-#### **PHP (MongoDB Driver)**
-```php
-<?php
-$connectionString = 'mongodb://admin:123456@database.demo.dev:27017/vdohide_production?replicaSet=rs0&authSource=admin&tls=true&tlsInsecure=true';
-
-$client = new MongoDB\Client($connectionString, [
-    'maxPoolSize' => 100,
-    'serverSelectionTimeoutMS' => 5000
-]);
-
-$database = $client->selectDatabase('vdohide_production');
-?>
-```
-
----
-
-## 🔧 Post-Installation Configuration
-
-### **Health Monitoring**
-
-```bash
-# ตรวจสอบ replica set health
-sudo /opt/mongodb/health-check.sh
-
-# ตรวจสอบ performance
-sudo mongosh --eval "db.serverStatus().connections"
-sudo mongosh --eval "db.serverStatus().wiredTiger.cache"
-```
-
-### **Backup Setup**
-
-```bash
-# ตั้งค่า automated backup (ทุกเซิร์ฟเวอร์)
-sudo crontab -e
-
-# เพิ่มบรรทัดนี้สำหรับ backup ทุกคืนเวลา 2:00 AM
 0 2 * * * /opt/mongodb/backup.sh
 ```
 
-### **Log Rotation**
+## การแก้ไขปัญหา
 
-```bash
-# ตั้งค่า log rotation
-sudo nano /etc/logrotate.d/mongodb
+### ปัญหาที่พบบ่อย
 
-# เพิ่มเนื้อหา:
-/var/log/mongodb/*.log {
-    daily
-    missingok
-    rotate 52
-    compress
-    notifempty
-    create 644 mongodb mongodb
-    postrotate
-        /bin/kill -USR1 `cat /var/run/mongodb/mongod.pid 2> /dev/null` 2> /dev/null || true
-    endscript
-}
-```
+1. **MongoDB service ไม่สามารถเริ่มต้นได้**
 
----
+   ```bash
+   systemctl status mongod
+   journalctl -u mongod -f
+   ```
 
-## 🛠️ Troubleshooting
+2. **การเริ่มต้น Replica set ล้มเหลว**
 
-### **Common Issues**
+   ```bash
+   mongosh --eval "rs.status()"
+   cat /var/log/mongodb/mongod.log
+   ```
 
-#### **1. MongoDB ไม่สามารถเริ่มได้**
-```bash
-# ตรวจสอบ logs
-sudo journalctl -u mongod --since "10 minutes ago" --no-pager
+3. **ปัญหาการเชื่อมต่อ**
+   - ตรวจสอบการตั้งค่า firewall: `ufw status`
+   - ตรวจสอบว่า MongoDB กำลัง listening: `netstat -tlnp | grep 27017`
+   - ทดสอบการเชื่อมต่อ: `telnet <server_ip> 27017`
 
-# ตรวจสอบ configuration
-sudo mongod --config /etc/mongod.conf --verbose
+### ไฟล์ Log
 
-# ตรวจสอบ permissions
-sudo chown -R mongodb:mongodb /var/lib/mongodb
-sudo chown -R mongodb:mongodb /var/log/mongodb
-sudo chown mongodb:mongodb /etc/mongod.conf
-```
+- MongoDB logs: `/var/log/mongodb/mongod.log`
+- Installation logs: `/var/log/mongodb-install.log`
+- Backup logs: `/var/log/mongodb-backup.log`
 
-#### **2. SSL Connection Issues**
-```bash
-# ทดสอบ certificate
-sudo openssl x509 -in /opt/mongodb/ssl/mongodb.crt -text -noout
+## คำแนะนำด้านความปลอดภัย
 
-# ทดสอบ SSL connection
-openssl s_client -connect database.demo.dev:27017 -servername database.demo.dev
+1. **เปลี่ยนรหัสผ่านเริ่มต้น**
 
-# ตรวจสอบ DNS resolution
-nslookup database.demo.dev
-```
+   ```bash
+   mongosh admin --eval "db.changeUserPassword('admin', 'NEW_SECURE_PASSWORD')"
+   ```
 
-#### **3. Replica Set Connection Problems**
-```bash
-# ตรวจสอบ network connectivity
-ping 127.0.0.1
-telnet 127.0.0.1 27017
+2. **สร้างผู้ใช้เฉพาะสำหรับแอปพลิเคชัน**
 
-# ตรวจสอบ firewall
-sudo ufw status
+   ```javascript
+   use your_database
+   db.createUser({
+     user: "app_user",
+     pwd: "secure_password",
+     roles: [{ role: "readWrite", db: "your_database" }]
+   })
+   ```
 
-# ตรวจสอบ replica set configuration
-sudo mongosh --eval "rs.conf()"
-```
+3. **เปิดใช้งาน SSL/TLS** (แนะนำสำหรับ production)
 
-### **Performance Optimization**
+4. **อัปเดตความปลอดภัยเป็นประจำ**
+   ```bash
+   apt update && apt upgrade
+   ```
 
-#### **MongoDB 8.0.12 Optimizations**
-```bash
-# ตรวจสอบ WiredTiger cache
-sudo mongosh --eval "db.serverStatus().wiredTiger.cache"
+## การรองรับ Architecture
 
-# ตรวจสอบ compression
-sudo mongosh --eval "db.runCommand({serverStatus:1}).compression"
+สคริปต์การติดตั้งนี้รองรับ:
 
-# ตรวจสอบ connections
-sudo mongosh --eval "db.serverStatus().connections"
-```
+- ✅ **x86_64 (AMD64)** - โปรเซสเซอร์ Intel/AMD
+- ✅ **ARM64 (AArch64)** - โปรเซสเซอร์ ARM (Apple M1/M2, AWS Graviton, ฯลฯ)
 
-#### **System Optimizations**
-```bash
-# ตรวจสอบ system limits
-ulimit -n
-ulimit -u
+สคริปต์จะตรวจสอบ architecture ของเซิร์ฟเวอร์โดยอัตโนมัติและใช้การปรับแต่งที่เหมาะสม
 
-# ตรวจสอบ transparent huge pages
-cat /sys/kernel/mm/transparent_hugepage/enabled
-```
+## หมายเหตุสุดท้าย
+
+- ผู้ใช้ admin มี **สิทธิ์เต็มในการเข้าถึงฐานข้อมูลทั้งหมด**
+- เซิร์ฟเวอร์ทุกเครื่องได้รับการกำหนดค่าที่ปรับแต่งสำหรับ MongoDB
+- Transparent Huge Pages ถูกปิดการใช้งานเพื่อประสิทธิภาพที่ดีขึ้น
+- Firewall ได้รับการกำหนดค่าเพื่อให้ replica set สื่อสารได้
+- System limits ได้รับการปรับแต่งสำหรับการทำงานของ MongoDB
+
+## การสนับสนุน
+
+สำหรับปัญหาหรือคำถาม:
+
+1. ตรวจสอบไฟล์ log ที่กล่าวข้างต้น
+2. ดู MongoDB documentation: https://docs.mongodb.com/
+3. ตรวจสอบสถานะ replica set ด้วย health check script
 
 ---
 
-## 📊 Monitoring & Maintenance
-
-### **Daily Health Checks**
-
-```bash
-# รัน health check script
-sudo /opt/mongodb/health-check.sh
-
-# ตรวจสอบ disk usage
-df -h /var/lib/mongodb
-
-# ตรวจสอบ memory usage
-free -h
-```
-
-### **Weekly Maintenance**
-
-```bash
-# ตรวจสอบ replica set lag
-sudo mongosh --eval "rs.printReplicationInfo()"
-
-# ทดสอบ backup restore
-sudo /opt/mongodb/backup.sh
-
-# ตรวจสอบ SSL certificate expiry
-sudo openssl x509 -in /opt/mongodb/ssl/mongodb.crt -noout -dates
-```
-
----
-
-## 🎯 Summary
-
-ระบบ MongoDB Replica Set ที่ติดตั้งเสร็จจะมี:
-
-- ✅ **MongoDB 8.0.12** พร้อม ARM64/AMD64 support
-- ✅ **SSL/TLS Encryption** สำหรับ production security
-- ✅ **3-Node Replica Set** สำหรับ high availability
-- ✅ **Performance Optimization** สำหรับ production workload
-- ✅ **Automated Backup** และ monitoring scripts
-- ✅ **DNS SRV Record** support
-- ✅ **Firewall Configuration** สำหรับ security
-
-### **Key Features:**
-
-1. **High Availability:** 3-node replica set with automatic failover
-2. **Security:** SSL/TLS encryption, authentication, authorization
-3. **Performance:** WiredTiger compression, optimized cache settings
-4. **Monitoring:** Health check scripts, automated backups
-5. **Scalability:** Ready for production workloads
-
-### **Connection Information:**
-
-- **Domain:** `database.demo.dev`
-- **Admin User:** `admin`
-- **Password:** `123456`
-- **Replica Set:** `rs0`
-- **SSL:** Required for production connections
-
-สำหรับการใช้งานใน production environment ควรเปลี่ยนรหัสผ่าน admin และตั้งค่า monitoring เพิ่มเติมตามความต้องการของระบบ
+**วันที่ติดตั้ง:** $(date)  
+**MongoDB Version:** 8.0  
+**แหล่งที่มาของสคริปต์:** https://raw.githubusercontent.com/vdohide/mongodb/refs/heads/main/replica.sh
