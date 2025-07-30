@@ -3,7 +3,7 @@ sudo systemctl stop mongod
 
 
 # เริ่ม MongoDB ใหม่
-sudo systemctl start mongod\
+sudo systemctl start mongod
 
 # รีสตาร์ท MongoDB 
 sudo systemctl restart mongod
